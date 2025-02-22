@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en"> 
+ <head> 
+  <meta charset="UTF-8"> 
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
+  <title>MP4 to MP3 Converter</title> 
+  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script> 
+  <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .upload-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #progress {
+            margin-top: 20px;
+            text-align: center;
+            color: #666;
+        }
+
+        #downloadLink {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+            color: #4CAF50;
+            text-decoration: none;
+        }
+    </style> 
+ </head> 
+ <body> 
+  <div class="container"> 
+   <h1>MP4 to MP3 Converter</h1> 
+   <div class="upload-section" onclick="document.getElementById('fileInput').click()"> 
+    <p>Klik untuk memilih file MP4</p> 
+    <input type="file" id="fileInput" accept=".mp4"> 
+   </div> <button id="convertBtn" disabled>Konversi ke MP3</button> 
+   <div id="progress"></div> <a id="downloadLink" download>Download MP3</a> 
+  </div> 
+  <script>
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({ log: true });
+        let selectedFile = null;
+
+        // Inisialisasi FFmpeg
+        async function initFFmpeg() {
+            document.getElementById('progress').textContent = 'Memuat FFmpeg...';
+            await ffmpeg.load();
+            document.getElementById('progress').textContent = 'FFmpeg siap!';
+        }
+
+        // Handle pemilihan file
+        document.getElementById('fileInput').addEventListener('change', (e) => {
+            selectedFile = e.target.files[0];
+            if (selectedFile) {
+                document.getElementById('convertBtn').disabled = false;
+                document.getElementById('progress').textContent = `File terpilih: ${selectedFile.name}`;
+            }
+        });
+
+        // Handle tombol konversi
+        document.getElementById('convertBtn').addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            const outputFileName = selectedFile.name.replace(/\.[^/.]+$/, "") + '.mp3';
+            
+            try {
+                document.getElementById('convertBtn').disabled = true;
+                document.getElementById('progress').textContent = 'Sedang mengkonversi...';
+
+                // Tulis file ke FFmpeg
+                ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(selectedFile));
+
+                // Jalankan perintah FFmpeg
+                await ffmpeg.run(
+                    '-i', 'input.mp4',
+                    '-vn',
+                    '-acodec', 'libmp3lame',
+                    '-ab', '192k',
+                    'output.mp3'
+                );
+
+                // Baca hasil konversi
+                const data = ffmpeg.FS('readFile', 'output.mp3');
+
+                // Buat URL untuk download
+                const url = URL.createObjectURL(new Blob([data.buffer], { type: 'audio/mp3' }));
+                
+                // Tampilkan link download
+                const downloadLink = document.getElementById('downloadLink');
+                downloadLink.href = url;
+                downloadLink.download = outputFileName;
+                downloadLink.style.display = 'block';
+                downloadLink.textContent = `Download ${outputFileName}`;
+
+                document.getElementById('progress').textContent = 'Konversi selesai!';
+            } catch (error) {
+                document.getElementById('progress').textContent = `Error: ${error.message}`;
+            } finally {
+                document.getElementById('convertBtn').disabled = false;
+            }
+        });
+
+        // Jalankan inisialisasi
+        initFFmpeg();
+    </script> 
+ </body>
+</html>
