@@ -1,11 +1,13 @@
-<!doctype html>
-<html lang="en"> 
- <head> 
-  <meta charset="UTF-8"> 
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> 
-  <title>MP4 to MP3 Converter</title> 
-  <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.0/dist/ffmpeg.min.js"></script> 
-  <style>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MP4 to MP3 Converter (Offline)</title>
+    <!-- Load local FFmpeg.wasm files -->
+    <script src="ffmpeg.min.js"></script>
+    <style>
+        /* CSS tetap sama seperti sebelumnya */
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -78,30 +80,43 @@
             color: #4CAF50;
             text-decoration: none;
         }
-    </style> 
- </head> 
- <body> 
-  <div class="container"> 
-   <h1>MP4 to MP3 Converter</h1> 
-   <div class="upload-section" onclick="document.getElementById('fileInput').click()"> 
-    <p>Klik untuk memilih file MP4</p> 
-    <input type="file" id="fileInput" accept=".mp4"> 
-   </div> <button id="convertBtn" disabled>Konversi ke MP3</button> 
-   <div id="progress"></div> <a id="downloadLink" download>Download MP3</a> 
-  </div> 
-  <script>
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MP4 to MP3 Converter (Offline)</h1>
+        <div class="upload-section" onclick="document.getElementById('fileInput').click()">
+            <p>Klik untuk memilih file MP4</p>
+            <input type="file" id="fileInput" accept=".mp4">
+        </div>
+        <button id="convertBtn" disabled>Konversi ke MP3</button>
+        <div id="progress"></div>
+        <a id="downloadLink" download>Download MP3</a>
+    </div>
+
+    <script>
         const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ log: true });
+        
+        // Konfigurasi path lokal
+        const ffmpeg = createFFmpeg({
+            log: true,
+            corePath: 'ffmpeg-core.js',      // Pastikan file ini ada di direktori yang sama
+            wasmPath: 'ffmpeg-core.wasm',   // Pastikan file ini ada di direktori yang sama
+            workerPath: 'ffmpeg-worker.js'  // Pastikan file ini ada di direktori yang sama
+        });
+
         let selectedFile = null;
 
-        // Inisialisasi FFmpeg
         async function initFFmpeg() {
             document.getElementById('progress').textContent = 'Memuat FFmpeg...';
-            await ffmpeg.load();
-            document.getElementById('progress').textContent = 'FFmpeg siap!';
+            try {
+                await ffmpeg.load();
+                document.getElementById('progress').textContent = 'FFmpeg siap!';
+            } catch (error) {
+                document.getElementById('progress').textContent = `Gagal memuat FFmpeg: ${error.message}`;
+            }
         }
 
-        // Handle pemilihan file
         document.getElementById('fileInput').addEventListener('change', (e) => {
             selectedFile = e.target.files[0];
             if (selectedFile) {
@@ -110,7 +125,6 @@
             }
         });
 
-        // Handle tombol konversi
         document.getElementById('convertBtn').addEventListener('click', async () => {
             if (!selectedFile) return;
 
@@ -120,10 +134,8 @@
                 document.getElementById('convertBtn').disabled = true;
                 document.getElementById('progress').textContent = 'Sedang mengkonversi...';
 
-                // Tulis file ke FFmpeg
                 ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(selectedFile));
 
-                // Jalankan perintah FFmpeg
                 await ffmpeg.run(
                     '-i', 'input.mp4',
                     '-vn',
@@ -132,13 +144,9 @@
                     'output.mp3'
                 );
 
-                // Baca hasil konversi
                 const data = ffmpeg.FS('readFile', 'output.mp3');
-
-                // Buat URL untuk download
                 const url = URL.createObjectURL(new Blob([data.buffer], { type: 'audio/mp3' }));
                 
-                // Tampilkan link download
                 const downloadLink = document.getElementById('downloadLink');
                 downloadLink.href = url;
                 downloadLink.download = outputFileName;
@@ -153,8 +161,7 @@
             }
         });
 
-        // Jalankan inisialisasi
         initFFmpeg();
-    </script> 
- </body>
+    </script>
+</body>
 </html>
